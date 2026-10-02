@@ -2,6 +2,10 @@
  * All runtime knobs, driven by environment variables so nothing is hardcoded.
  * Model names in the SDK examples (e.g. `gpt-5.4`) may not match your API key.
  */
+import { loadEnvFiles } from './env';
+
+// Must run before the config object below reads process.env.
+loadEnvFiles();
 
 export type ModelBackend =
   | 'openai'

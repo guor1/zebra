@@ -34,10 +34,14 @@ Two entry points share one runtime:
 cd zebra
 pnpm install
 pnpm exec playwright install chromium   # one-time browser download
-export OPENAI_API_KEY=sk-...
+cp .env.example .env                    # then edit the values
 pnpm start          # CLI
 pnpm start:gateway  # WebChat at http://127.0.0.1:3000
 ```
+
+Configuration is read from the environment and from `.env` / `.env.local` in
+the project root (`.env.local` wins over `.env`; already-exported shell
+variables win over both). See [.env.example](.env.example) for every option.
 
 ### Self-hosted / OpenAI-compatible models
 
@@ -46,10 +50,10 @@ Set `ZEBRA_MODEL_BACKEND=compatible` and point at any OpenAI-compatible server
 skips the OpenAI tracing exporter, so no `OPENAI_API_KEY` is needed.
 
 ```bash
-export ZEBRA_MODEL_BACKEND=compatible
-export ZEBRA_MODEL_BASE_URL=http://127.0.0.1:11434/v1   # e.g. Ollama
-export ZEBRA_MODEL=qwen2.5-coder                          # any model the server exposes
-pnpm start
+# .env
+ZEBRA_MODEL_BACKEND=compatible
+ZEBRA_MODEL_BASE_URL=http://127.0.0.1:11434/v1   # e.g. Ollama
+ZEBRA_MODEL=qwen2.5-coder                          # any model the server exposes
 ```
 
 **Known limitation:** in `compatible` mode the sandbox exposes a reduced
@@ -84,7 +88,8 @@ In the CLI REPL:
 ```
 src/
   index.ts                     entry: CLI REPL or gateway mode
-  config.ts                    all knobs, env-driven
+  config.ts                    all knobs, env-driven (.env aware)
+  env.ts                       .env / .env.local loader (env wins over files)
   modelProvider.ts             installs OpenAI or OpenAI-compatible provider
   runtime/
     session.ts                 per-connection conversation (history + handoff chain + turn queue)
