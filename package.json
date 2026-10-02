@@ -1,0 +1,24 @@
+{
+  "name": "zebra",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Local autonomous agent gateway built on the OpenAI Agents SDK.",
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@openai/agents": "0.18.0",
+    "playwright": "^1.49.0",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  },
+  "engines": {
+    "node": ">=22.18"
+  }
+}
