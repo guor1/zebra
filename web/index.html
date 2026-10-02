@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zebra</title>
+<style>
+  :root { color-scheme: dark; }
+  body {
+    font-family: system-ui, sans-serif;
+    margin: 0; padding: 0;
+    background: #0f1115; color: #e6e8eb;
+    display: flex; flex-direction: column; height: 100vh;
+  }
+  header {
+    padding: 12px 20px; font-weight: 600;
+    border-bottom: 1px solid #23262d;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  #log { flex: 1; overflow-y: auto; padding: 20px; }
+  .msg { max-width: 720px; margin: 0 auto 16px; }
+  .msg .meta { font-size: 12px; color: #8a8f98; margin-bottom: 4px; }
+  .msg .bubble {
+    background: #171a21; border: 1px solid #23262d;
+    border-radius: 10px; padding: 10px 14px;
+    white-space: pre-wrap; word-break: break-word; line-height: 1.5;
+  }
+  .msg.user .bubble { background: #1d2430; }
+  .msg.assistant .bubble { background: #151a14; }
+  .msg.system { text-align: center; color: #8a8f98; font-size: 13px; }
+  .msg.system .bubble { background: transparent; border-color: transparent; }
+  footer {
+    padding: 14px 20px; border-top: 1px solid #23262d;
+    display: flex; gap: 10px; align-items: center;
+  }
+  #input {
+    flex: 1; background: #171a21; border: 1px solid #23262d; color: #e6e8eb;
+    border-radius: 8px; padding: 10px 12px; font: inherit; outline: none;
+  }
+  #input:focus { border-color: #3a4150; }
+  #send, #reset {
+    background: #23262d; border: 1px solid #2e333d; color: #e6e8eb;
+    border-radius: 8px; padding: 10px 16px; font: inherit; cursor: pointer;
+  }
+  #send:hover, #reset:hover { background: #2a2f39; }
+  #send:disabled, #reset:disabled { opacity: 0.5; cursor: default; }
+  #status { font-size: 12px; color: #8a8f98; }
+</style>
+</head>
+<body>
+<header>
+  <span>🦓 Zebra</span>
+  <span id="status">connecting…</span>
+</header>
+<div id="log"></div>
+<footer>
+  <input id="input" placeholder="Message Zebra… (Enter to send)" autocomplete="off" />
+  <button id="send">Send</button>
+  <button id="reset">Reset</button>
+</footer>
+<script>
+(() => {
+  const log = document.getElementById('log');
+  const input = document.getElementById('input');
+  const sendBtn = document.getElementById('send');
+  const resetBtn = document.getElementById('reset');
+  const status = document.getElementById('status');
+
+  let ws = null;
+  let busy = false;
+  const counter = { n: 0 };
+
+  function nextId() { return String(++counter.n); }
+
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${proto}://${location.host}/ws`);
+    ws.onopen = () => { status.textContent = 'connected'; status.style.color = '#4caf50'; };
+    ws.onclose = () => { status.textContent = 'disconnected — reload to reconnect'; status.style.color = '#e5484d'; };
+    ws.onerror = () => { /* onclose follows */ };
+    ws.onmessage = (event) => {
+      let msg; try { msg = JSON.parse(event.data); } catch { return; }
+      handle(msg);
+    };
+  }
+
+  function handle(msg) {
+    switch (msg.type) {
+      case 'response':
+        busy = false; refresh();
+        if (msg.output && msg.output !== '(no output)') {
+          add('assistant', msg.speaker, msg.output);
+        }
+        break;
+      case 'approval_required': {
+        add('system', 'approval', msg.description);
+        const approve = window.confirm(`Approve?\n\n${msg.description}`);
+        ws.send(JSON.stringify({ type: 'approval', id: msg.id, approved: !!approve }));
+        break;
+      }
+      case 'reset_done':
+        log.innerHTML = '';
+        break;
+      case 'error':
+        busy = false; refresh();
+        add('system', 'error', msg.error);
+        break;
+    }
+  }
+
+  function add(kind, meta, text) {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg ' + kind;
+    const m = document.createElement('div');
+    m.className = 'meta';
+    m.textContent = meta;
+    const b = document.createElement('div');
+    b.className = 'bubble';
+    b.textContent = text;
+    wrap.append(m, b);
+    log.appendChild(wrap);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  function refresh() {
+    sendBtn.disabled = busy;
+    input.disabled = busy;
+  }
+
+  function send() {
+    const text = input.value.trim();
+    if (!text || busy || !ws || ws.readyState !== WebSocket.OPEN) return;
+    add('user', 'you', text);
+    input.value = '';
+    busy = true; refresh();
+    ws.send(JSON.stringify({ type: 'message', id: nextId(), text }));
+  }
+
+  sendBtn.addEventListener('click', send);
+  input.addEventListener('keydown', (e) => { if (e.key === 'Enter') send(); });
+  resetBtn.addEventListener('click', () => {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'reset' }));
+  });
+
+  connect();
+})();
+</script>
+</body>
+</html>

@@ -23,6 +23,9 @@ export const config = {
 
   /** Max model turns per request. */
   maxTurns: Number(process.env.ZEBRA_MAX_TURNS ?? 12),
+
+  /** Gateway HTTP + WebSocket listen port. */
+  gatewayPort: Number(process.env.ZEBRA_GATEWAY_PORT ?? 3000),
 } as const;
 
 export function requireOpenAIKey(): string {

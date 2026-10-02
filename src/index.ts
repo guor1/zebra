@@ -1,9 +1,10 @@
-import { user, type AgentInputItem } from '@openai/agents';
 import { createInterface } from 'node:readline/promises';
 import { config, requireOpenAIKey } from './config';
-import { createRouter } from './agents/router';
-import { runWithInterruptions } from './hitl';
-import { closeSandboxSession, getSandboxSession } from './sandbox/session';
+import { startGateway } from './gateway/server';
+import { Session } from './runtime/session';
+import { getSandboxSession, closeSandboxSession } from './sandbox/session';
+
+const MODE = process.argv[2] ?? 'cli';
 
 async function ask(prompt: string): Promise<string> {
   const rl = createInterface({
@@ -15,15 +16,12 @@ async function ask(prompt: string): Promise<string> {
   return message;
 }
 
-async function main() {
+async function runCli() {
   requireOpenAIKey();
 
   // Reuse one sandbox session (Docker container) across all turns.
   const sandboxSession = await getSandboxSession();
-
-  const router = createRouter();
-  let latestAgent = router;
-  let history: AgentInputItem[] = [];
+  const session = new Session('cli', sandboxSession);
 
   console.log('Zebra is ready. Type a message, /reset to start over, or exit() to quit.\n');
 
@@ -32,23 +30,20 @@ async function main() {
       const message = await ask('> ');
       if (message === 'exit()') break;
       if (message === '/reset') {
-        history = [];
-        latestAgent = router;
+        await session.reset();
         console.log('[reset] history cleared, back at router.');
         continue;
       }
 
-      history.push(user(message));
-      const result = await runWithInterruptions(latestAgent, history, {
-        maxTurns: config.maxTurns,
-        sandbox: { session: sandboxSession },
+      const { speaker, output } = await session.handleMessage(message, async ({ description }) => {
+        if (config.autoApprove) {
+          console.log(`[auto-approve] ${description}`);
+          return true;
+        }
+        const answer = await ask(`Approve ${description}? (y/n): `);
+        return answer.trim().toLowerCase() === 'y' || answer.trim().toLowerCase() === 'yes';
       });
 
-      latestAgent = result.lastAgent ?? latestAgent;
-      history = result.history;
-
-      const speaker = result.lastAgent?.name ?? 'router';
-      const output = String(result.finalOutput ?? '(no output)');
       console.log(`[${speaker}] ${output}`);
       console.log('');
     }
@@ -57,7 +52,22 @@ async function main() {
   }
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+function runGateway() {
+  const { close } = startGateway();
+  console.log(`Zebra gateway listening on http://127.0.0.1:${config.gatewayPort}`);
+  const shutdown = async () => {
+    await close();
+    process.exit(0);
+  };
+  process.on('SIGINT', shutdown);
+  process.on('SIGTERM', shutdown);
+}
+
+if (MODE === 'gateway') {
+  runGateway();
+} else {
+  runCli().catch((error) => {
+    console.error(error);
+    process.exit(1);
+  });
+}

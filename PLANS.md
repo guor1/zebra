@@ -86,8 +86,8 @@ zebra/
 
 ## 6. 路线图
 
-- **M1（本次）**：CLI + 三 agent + handoff + Docker 沙箱 + 浏览器 + HITL
-- **M2**：拆出 Gateway 守护进程 + WebSocket 控制面 + WebChat
+- **M1（已完成）**：CLI + 三 agent + handoff + Docker 沙箱 + 浏览器 + HITL
+- **M2（本次）**：抽出 runtime 层 + Gateway 守护进程（HTTP + WebSocket）+ WebChat
 - **M3**：Telegram 渠道（验证 Channel 抽象）+ 审批策略 + SQLite 会话持久化
 - **M4+**：cron、第二渠道、多用户
 
