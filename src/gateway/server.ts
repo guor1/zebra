@@ -3,7 +3,7 @@ import { createServer, type ServerResponse } from 'node:http';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer, WebSocket } from 'ws';
-import { config, requireOpenAIKey } from '../config';
+import { config } from '../config';
 import { Session } from '../runtime/session';
 import { closeSandboxSession, getSandboxSession } from '../sandbox/session';
 
@@ -28,8 +28,6 @@ type Client = {
 };
 
 export function startGateway(port = config.gatewayPort): { close: () => Promise<void> } {
-  requireOpenAIKey();
-
   const sandboxSessionPromise = getSandboxSession();
   const clients = new Set<Client>();
 

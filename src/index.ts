@@ -1,10 +1,13 @@
 import { createInterface } from 'node:readline/promises';
 import { config, requireOpenAIKey } from './config';
+import { installModelProvider } from './modelProvider';
 import { startGateway } from './gateway/server';
 import { Session } from './runtime/session';
 import { getSandboxSession, closeSandboxSession } from './sandbox/session';
 
 const MODE = process.argv[2] ?? 'cli';
+
+installModelProvider();
 
 async function ask(prompt: string): Promise<string> {
   const rl = createInterface({
@@ -17,7 +20,9 @@ async function ask(prompt: string): Promise<string> {
 }
 
 async function runCli() {
-  requireOpenAIKey();
+  if (config.modelBackend === 'openai') {
+    requireOpenAIKey();
+  }
 
   // Reuse one sandbox session (Docker container) across all turns.
   const sandboxSession = await getSandboxSession();

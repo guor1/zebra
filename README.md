@@ -39,6 +39,25 @@ pnpm start          # CLI
 pnpm start:gateway  # WebChat at http://127.0.0.1:3000
 ```
 
+### Self-hosted / OpenAI-compatible models
+
+Set `ZEBRA_MODEL_BACKEND=compatible` and point at any OpenAI-compatible server
+(Ollama, vLLM, LM Studio, llama.cpp, …). Zebra then speaks Chat Completions and
+skips the OpenAI tracing exporter, so no `OPENAI_API_KEY` is needed.
+
+```bash
+export ZEBRA_MODEL_BACKEND=compatible
+export ZEBRA_MODEL_BASE_URL=http://127.0.0.1:11434/v1   # e.g. Ollama
+export ZEBRA_MODEL=qwen2.5-coder                          # any model the server exposes
+pnpm start
+```
+
+**Known limitation:** in `compatible` mode the sandbox exposes a reduced
+toolset. `apply_patch` is replaced by a function-tool fallback with the same
+name, and `view_image` returns data URLs instead of image parts; the Chat
+Completions wire format only carries plain function tools and string outputs.
+Everything else (chat, handoffs, `exec_command`) works unchanged.
+
 In the CLI REPL:
 
 - type a message and press enter
@@ -49,7 +68,10 @@ In the CLI REPL:
 
 | Variable | Default | Meaning |
 | --- | --- | --- |
-| `ZEBRA_MODEL` | `gpt-5.4-mini` | Model name (must be available to your API key) |
+| `ZEBRA_MODEL` | `gpt-5.4-mini` | Model name to request |
+| `ZEBRA_MODEL_BACKEND` | `openai` | `openai` or `compatible` |
+| `ZEBRA_MODEL_BASE_URL` | `http://127.0.0.1:11434/v1` | Base URL for the `compatible` backend |
+| `ZEBRA_MODEL_API_KEY` | `zebra` | API key for the `compatible` backend |
 | `ZEBRA_SANDBOX_BACKEND` | `docker` | `docker` or `unix-local` |
 | `ZEBRA_DOCKER_IMAGE` | `node:22-bookworm-slim` | Image for the Docker sandbox |
 | `ZEBRA_BROWSER_HEADLESS` | `1` | `0` to show the browser window |
@@ -63,6 +85,7 @@ In the CLI REPL:
 src/
   index.ts                     entry: CLI REPL or gateway mode
   config.ts                    all knobs, env-driven
+  modelProvider.ts             installs OpenAI or OpenAI-compatible provider
   runtime/
     session.ts                 per-connection conversation (history + handoff chain + turn queue)
     runWithApprovals.ts        run() wrapper that resolves HITL approvals via a callback
