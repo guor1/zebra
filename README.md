@@ -60,7 +60,30 @@ ZEBRA_MODEL=qwen2.5-coder                          # any model the server expose
 toolset. `apply_patch` is replaced by a function-tool fallback with the same
 name, and `view_image` returns data URLs instead of image parts; the Chat
 Completions wire format only carries plain function tools and string outputs.
-Everything else (chat, handoffs, `exec_command`) works unchanged.
+Everything else (chat, handoffs, `exec_command`, custom function tools) works
+unchanged.
+
+### Custom function tools
+
+Add tools by defining typed functions with Zod schemas and registering them on
+an agent. Example tools live in [`src/agents/tools.ts`](src/agents/tools.ts)
+(`get_weather`, `get_current_time`) and are wired onto the Chat Assistant:
+
+```ts
+import { tool } from '@openai/agents';
+import { z } from 'zod';
+
+const getWeather = tool({
+  name: 'get_weather',
+  description: 'Get the current weather for a city.',
+  parameters: z.object({ city: z.string() }),
+  async execute({ city }) {
+    return `The weather in ${city} is sunny, 22C.`;
+  },
+});
+```
+
+Function tools work on both the `openai` and `compatible` backends.
 
 In the CLI REPL:
 
@@ -96,6 +119,7 @@ src/
     runWithApprovals.ts        run() wrapper that resolves HITL approvals via a callback
     interruptions.ts           human-readable approval descriptions
   agents/                      router, chat, browser, sandbox agents
+    tools.ts                   example function tools (get_weather, get_current_time)
   computer/playwrightComputer.ts  Computer interface backed by Playwright
   sandbox/                     manifest + session lifecycle
   gateway/server.ts            HTTP + WebSocket gateway, WS protocol, approval bridging
